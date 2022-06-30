@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   TextInput,
   Button,
@@ -12,8 +13,11 @@ import {
   Title
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { FcGoogle } from "react-icons/fc";
 import { Link } from "react-router-dom";
+import {
+  createAuthUserWithEmailAndPassword,
+  createUserFromAuth
+} from "../../utils/firebase";
 
 export default function Login() {
   const form = useForm({
@@ -25,15 +29,48 @@ export default function Login() {
     },
 
     validate: {
-      email: value => (/^\S+@\S+$/.test(value) ? null : "Invalid email")
+      email: value => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
+      fullname: value => (!value ? "Name is required" : null),
+      password: value =>
+        !value || value.length < 6
+          ? "Password is required and must at leaset be 6 digits"
+          : null,
+      repeatPassword: value => {
+        const { value: password } = form.getInputProps("password");
+        if (password && value && value !== password) {
+          return "Passwords should match";
+        } else {
+          if (!value) {
+            return "This field is required";
+          }
+        }
+      }
     }
   });
+  const [isLoading, setLoading] = useState(false);
 
-  const onSubmit = values => {
-    console.log(values);
+  const onSubmit = async e => {
+    e.preventDefault();
     const result = form.validate();
-    if (result.hasErrors) {
-      console.error(result.errors);
+    if (!result.hasErrors) {
+      await registerUser(form.values);
+    }
+  };
+
+  const registerUser = async ({ fullname, email, password }) => {
+    try {
+      setLoading(true);
+      const { user } = await createAuthUserWithEmailAndPassword(
+        email,
+        password
+      );
+      user.displayName = fullname;
+      await createUserFromAuth(user);
+      setLoading(false);
+      form.reset()
+    } catch (error) {
+      setLoading(false);
+      console.error(error);
     }
   };
 
@@ -61,7 +98,7 @@ export default function Login() {
       })}
     >
       <Container size="xs" px="xs">
-        <form onSubmit={form.onSubmit(onSubmit)}>
+        <form onSubmit={onSubmit}>
           <TextInput
             required
             label="Name"
@@ -89,7 +126,7 @@ export default function Login() {
           />
 
           <Group position="right" mt="md">
-            <Button type="submit" onClick={onSubmit} disabled={!form.errors}>
+            <Button type="submit" onClick={onSubmit} loading={isLoading}>
               Submit
             </Button>
           </Group>
@@ -100,12 +137,6 @@ export default function Login() {
             </Anchor>
           </Text>
         </form>
-        <br />
-        <Center>
-          <Button leftIcon={<FcGoogle />} variant="outline" size="lg" fullWidth>
-            Continue with Google
-          </Button>
-        </Center>
       </Container>
     </AppShell>
   );
