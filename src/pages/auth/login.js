@@ -48,11 +48,14 @@ export default function Login() {
         form.reset()
       } catch (error) {
         setLoading(false);
-        console.error(error);
         if(error.code === 'auth/wrong-password') {
           form.setErrors({ password: 'Wrong Passwrod' });
         } else if(error.code === 'auth/invalid-email') {
           form.setErrors({ username: 'Invalid username or email.' });
+        } else if(error.code === 'auth/user-not-found') {
+          form.setErrors({ username: 'Username or email does not exist' });
+        } else {
+          console.error(error);
         }
       }
     }
